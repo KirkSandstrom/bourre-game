@@ -12,7 +12,7 @@ class Card {
 
 // Deck class
 class Deck {
-  constructor(dealer) {
+  constructor() {
     this.cards = [];
   }
 
@@ -27,6 +27,44 @@ class Deck {
       const j = Math.floor(Math.random() * (i + 1));
       [a[i], a[j]] = [a[j], a[i]];
     }
+  }
+
+  dealCard(player) {
+    let card = this.cards.pop();
+    player.hand.push(card);
+  }
+
+  dealHand(playerOrder) {
+    this.shuffle();
+
+    for(let i = 0; i < playerOrder.length; i++) {
+      if(playerOrder[i].hand.length < 5) {
+        this.dealCard(playerOrder[i]);
+        if(i === playerOrder.length - 1) {
+          i = -1;
+        }
+      }
+    }
+
+    // Add functionality to flip dealers 5th card up here the 'trump card'
+    console.log('Flip the dealers 5th card face up here. It\'s a: ');
+    console.log(playerOrder[playerOrder.length - 1].hand[4]);
+  }
+}
+
+// Player class
+class Player {
+  constructor() {
+    this.hand = [];
+    this.dealer = false;
+  }
+
+  getDealer() {
+    return this.dealer;
+  }
+
+  setDealer(bool) {
+    this.dealer = bool;
   }
 }
 
@@ -65,6 +103,38 @@ function buildDeck(deck) {
   }
 }
 
+// get the player order for dealing cards and playing the hand - based off who is the dealer
+function getPlayerOrder(players) {
+  let currentDealer = players.findIndex(player => player.getDealer() === true);
+
+  let firstToPlay = players.slice(currentDealer + 1);
+  let lastToPlay = players.slice(0, currentDealer + 1);
+
+  let playerOrder = firstToPlay.concat(lastToPlay);
+
+  return playerOrder;
+}
+
 // -------------------- Game Logic --------------------
 let deck = new Deck();
 buildDeck(deck);
+
+let player1 = new Player();
+let player2 = new Player();
+let player3 = new Player();
+let player4 = new Player();
+let player5 = new Player();
+
+player4.setDealer(true);
+
+let players = [player1, player2, player3, player4, player5];
+
+players = getPlayerOrder(players);
+console.log(players);
+deck.dealHand(players);
+
+console.log(player1.hand);
+console.log(player2.hand);
+console.log(player3.hand);
+console.log(player4.hand);
+console.log(player5.hand);
