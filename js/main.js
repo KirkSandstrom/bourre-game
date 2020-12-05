@@ -10,10 +10,49 @@ class Card {
   }
 }
 
+// Chip class
+class Chip {
+  constructor() {
+    this.value = 1;
+    this.chipLink = 'img/chips/chipWhiteBlue_border.png';
+  }
+}
+
 // Deck class
 class Deck {
   constructor() {
     this.cards = [];
+
+    this.buildDeck();
+  }
+
+  // initializes all cards and adds them to the deck
+  buildDeck() {
+    let suits = ['clubs', 'diamonds', 'hearts', 'spades'];
+    let cardImgLink ='';
+    for(let cardValue = 2; cardValue < 15; cardValue++) {
+      suits.forEach(suit => {
+        // cardValues of 11 - 14 are face cards so set the cardImgLink to J, Q, K, A accordingly
+        switch(cardValue) {
+          case 11 :
+            cardImgLink = `img/cardFaces/card${capitalizeFirstLetter(suit)}J.png`;
+            break;
+          case 12 :
+            cardImgLink = `img/cardFaces/card${capitalizeFirstLetter(suit)}Q.png`;
+            break;
+          case 13 :
+            cardImgLink = `img/cardFaces/card${capitalizeFirstLetter(suit)}K.png`;
+            break;
+          case 14 :
+            cardImgLink = `img/cardFaces/card${capitalizeFirstLetter(suit)}A.png`;
+            break;
+          default :
+            cardImgLink = `img/cardFaces/card${capitalizeFirstLetter(suit)}${cardValue}.png`;
+        }
+        let card = new Card(suit, cardValue, cardImgLink);
+        this.addCard(card);
+      });
+    }
   }
 
   addCard(card) {
@@ -52,11 +91,30 @@ class Deck {
   }
 }
 
+// Pot class
+class Pot {
+  constructor() {
+    this.chips = [];
+    this.previousPotSize = 0;
+  }
+
+  payout(player) {
+    this.previousPotSize = this.chips.length;
+    player.chips = player.chips.concat(this.chips);
+    this.chips = [];
+  }
+}
+
 // Player class
 class Player {
-  constructor() {
+  constructor(numberOfChips = 10) {
     this.hand = [];
     this.dealer = false;
+    this.chips = [];
+
+    for(let i = 0; i < numberOfChips; i++) {
+      this.chips.push(new Chip());
+    }
   }
 
   getDealer() {
@@ -66,41 +124,24 @@ class Player {
   setDealer(bool) {
     this.dealer = bool;
   }
+
+  anteUp(pot, amount = 1) {
+    for(let i = 0; i < amount; i++) {
+      if(this.chips.length !== 0) {
+        let chip = this.chips.pop();
+        pot.chips.push(chip);
+      } else {
+        console.log('A player has run out of chips!');
+        break;
+      }
+    }
+  }
 }
 
 // -------------------- Global Functions --------------------
 // capitalizes first letter of string passed in
 function capitalizeFirstLetter(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
-}
-
-// initializes all cards and adds them to the deck
-function buildDeck(deck) {
-  let suits = ['clubs', 'diamonds', 'hearts', 'spades'];
-  let cardImgLink ='';
-  for(let cardValue = 2; cardValue < 15; cardValue++) {
-    suits.forEach(suit => {
-      // cardValues of 11 - 14 are face cards so set the cardImgLink to J, Q, K, A accordingly
-      switch(cardValue) {
-        case 11 :
-          cardImgLink = `img/cardFaces/card${capitalizeFirstLetter(suit)}J.png`;
-          break;
-        case 12 :
-          cardImgLink = `img/cardFaces/card${capitalizeFirstLetter(suit)}Q.png`;
-          break;
-        case 13 :
-          cardImgLink = `img/cardFaces/card${capitalizeFirstLetter(suit)}K.png`;
-          break;
-        case 14 :
-          cardImgLink = `img/cardFaces/card${capitalizeFirstLetter(suit)}A.png`;
-          break;
-        default :
-          cardImgLink = `img/cardFaces/card${capitalizeFirstLetter(suit)}${cardValue}.png`;
-      }
-      let card = new Card(suit, cardValue, cardImgLink);
-      deck.addCard(card);
-    });
-  }
 }
 
 // get the player order for dealing cards and playing the hand - based off who is the dealer
@@ -117,7 +158,8 @@ function getPlayerOrder(players) {
 
 // -------------------- Game Logic --------------------
 let deck = new Deck();
-buildDeck(deck);
+
+let pot = new Pot();
 
 let player1 = new Player();
 let player2 = new Player();
@@ -129,12 +171,8 @@ player4.setDealer(true);
 
 let players = [player1, player2, player3, player4, player5];
 
+// must call getPlayerOrder before dealHand to determine the order for the hand
 players = getPlayerOrder(players);
-console.log(players);
 deck.dealHand(players);
 
-console.log(player1.hand);
-console.log(player2.hand);
-console.log(player3.hand);
-console.log(player4.hand);
-console.log(player5.hand);
+players.forEach(player => player.anteUp(pot));
