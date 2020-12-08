@@ -2,7 +2,8 @@
 
 // Card class
 class Card {
-  constructor(suit, value, cardFaceLink, cardBackLink = "img/cardBacks/cardBack_red5.png") {
+  constructor(cardID, suit, value, cardFaceLink, cardBackLink = "img/cardBacks/cardBack_red5.png") {
+    this.cardID = cardID;
     this.suit = suit;
     this.value = value;
     this.cardFaceLink = cardFaceLink;
@@ -22,12 +23,14 @@ class Chip {
 class Deck {
   constructor() {
     this.cards = [];
+    this.discardPile = [];
 
     this.buildDeck();
   }
 
   // initializes all cards and adds them to the deck
   buildDeck() {
+    let cardID = 1;
     let suits = ['clubs', 'diamonds', 'hearts', 'spades'];
     let cardImgLink ='';
     for(let cardValue = 2; cardValue < 15; cardValue++) {
@@ -49,8 +52,9 @@ class Deck {
           default :
             cardImgLink = `img/cardFaces/card${capitalizeFirstLetter(suit)}${cardValue}.png`;
         }
-        let card = new Card(suit, cardValue, cardImgLink);
+        let card = new Card(cardID, suit, cardValue, cardImgLink);
         this.addCard(card);
+        cardID++;
       });
     }
   }
@@ -89,6 +93,58 @@ class Deck {
     console.log('Flip the dealers 5th card face up here. It\'s a: ');
     console.log(playerOrder[playerOrder.length - 1].hand[4]);
   }
+
+  pullFromDiscardPile() {
+    this.cards = this.cards.concat(this.discardPile);
+    this.discardPile = [];
+
+    this.shuffle();
+  }
+}
+
+// Game class
+class Game {
+  constructor(opponents, startingChips = 10) {
+    this.opponents = opponents;
+
+    this.deck = new Deck();
+    this.pot = new Pot();
+    this.players = [];
+
+    // create npc players here
+    for(let i = 0; i < this.opponents; i++) {
+      this.players.push(new Player(`npc${i + 1}`, startingChips));
+    }
+
+    // create human player here
+    this.players.push(new Player('humanPlayer', startingChips));
+
+    // randomly choose a player to be the starting dealer
+    this.players[getRandomInt(this.players.length)].setDealer(true);
+
+    // set order of the players so we are ready to deal the first hand
+    this.players = this.getPlayerOrder();
+  }
+
+  // get the player order for dealing cards and playing the hand - based off who is the dealer
+  getPlayerOrder() {
+    let currentDealer = this.players.findIndex(player => player.getDealer() === true);
+
+    let firstToPlay = this.players.slice(currentDealer + 1);
+    let lastToPlay = this.players.slice(0, currentDealer + 1);
+
+    let playerOrder = firstToPlay.concat(lastToPlay);
+
+    return playerOrder;
+  }
+
+  playHand() {
+    // players must contribute initial ante
+    this.players.forEach(player => player.anteUp(this.pot));
+
+    // 
+    this.deck.dealHand(this.players);
+  }
 }
 
 // Pot class
@@ -102,12 +158,14 @@ class Pot {
     this.previousPotSize = this.chips.length;
     player.chips = player.chips.concat(this.chips);
     this.chips = [];
+    console.log(`${player.name} wins the pot!`);
   }
 }
 
 // Player class
 class Player {
-  constructor(numberOfChips = 10) {
+  constructor(name, numberOfChips = 10) {
+    this.name = name;
     this.hand = [];
     this.dealer = false;
     this.chips = [];
@@ -117,12 +175,29 @@ class Player {
     }
   }
 
+  exchangeCard(cardID, deck) {
+    const cardIndex = this.hand.findIndex(card => card.cardID === cardID);
+
+    if(cardIndex !== -1) {
+      let card = this.hand.splice(cardIndex, 1);
+      card = card[0];
+      console.log(card);
+      deck.discardPile.unshift(card);
+      deck.dealCard(this);
+    } else {
+      console.log('Card to be exchanged not found in hand!');
+    }
+  }
+
   getDealer() {
     return this.dealer;
   }
 
   setDealer(bool) {
     this.dealer = bool;
+    if(bool === true) {
+      console.log(`${this.name} is the dealer.`);
+    }
   }
 
   anteUp(pot, amount = 1) {
@@ -130,8 +205,9 @@ class Player {
       if(this.chips.length !== 0) {
         let chip = this.chips.pop();
         pot.chips.push(chip);
+        console.log(`${this.name} antes a chip.`);
       } else {
-        console.log('A player has run out of chips!');
+        console.log(`${this.name} has run out of chips!`);
         break;
       }
     }
@@ -144,35 +220,11 @@ function capitalizeFirstLetter(string) {
   return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-// get the player order for dealing cards and playing the hand - based off who is the dealer
-function getPlayerOrder(players) {
-  let currentDealer = players.findIndex(player => player.getDealer() === true);
-
-  let firstToPlay = players.slice(currentDealer + 1);
-  let lastToPlay = players.slice(0, currentDealer + 1);
-
-  let playerOrder = firstToPlay.concat(lastToPlay);
-
-  return playerOrder;
+// returns a random number between 0 and max
+function getRandomInt(max) {
+  return Math.floor(Math.random() * Math.floor(max));
 }
 
 // -------------------- Game Logic --------------------
-let deck = new Deck();
-
-let pot = new Pot();
-
-let player1 = new Player();
-let player2 = new Player();
-let player3 = new Player();
-let player4 = new Player();
-let player5 = new Player();
-
-player4.setDealer(true);
-
-let players = [player1, player2, player3, player4, player5];
-
-// must call getPlayerOrder before dealHand to determine the order for the hand
-players = getPlayerOrder(players);
-deck.dealHand(players);
-
-players.forEach(player => player.anteUp(pot));
+let game = new Game(4);
+game.playHand();
