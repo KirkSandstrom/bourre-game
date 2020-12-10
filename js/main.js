@@ -92,6 +92,8 @@ class Deck {
     // Add functionality to flip dealers 5th card up here the 'trump card'
     console.log('Flip the dealers 5th card face up here. It\'s a: ');
     console.log(playerOrder[playerOrder.length - 1].hand[4]);
+
+    game.setTrumpCard(playerOrder[playerOrder.length - 1].hand[4]);
   }
 
   pullFromDiscardPile() {
@@ -111,13 +113,16 @@ class Game {
     this.pot = new Pot();
     this.players = [];
 
+    this.trumpCard = null;
+    this.leadCard = null;
+
     // create npc players here
     for(let i = 0; i < this.opponents; i++) {
-      this.players.push(new Player(`npc${i + 1}`, startingChips));
+      this.players.push(new PlayerNPC(`npc${i + 1}`, startingChips));
     }
 
     // create human player here
-    this.players.push(new Player('humanPlayer', startingChips));
+    this.players.push(new PlayerHuman('humanPlayer', startingChips));
 
     // randomly choose a player to be the starting dealer
     this.players[getRandomInt(this.players.length)].setDealer(true);
@@ -143,7 +148,24 @@ class Game {
     this.players.forEach(player => player.anteUp(this.pot));
 
     // 
-    this.deck.dealHand(this.players);
+    this.deck.dealHand(this.players, this);
+    this.players.forEach(player => player.passOrPlay());
+  }
+
+  setTrumpCard(card) {
+    this.trumpCard = card;
+  }
+
+  getTrumpCard() {
+    return this.trumpCard;
+  }
+
+  setLeadCard(card) {
+    this.leadCard = card;
+  }
+
+  getLeadCard() {
+    return this.leadCard;
   }
 }
 
@@ -169,6 +191,7 @@ class Player {
     this.hand = [];
     this.dealer = false;
     this.chips = [];
+    this.playing = true;
 
     for(let i = 0; i < numberOfChips; i++) {
       this.chips.push(new Chip());
@@ -200,6 +223,14 @@ class Player {
     }
   }
 
+  getPlaying() {
+    return this.playing;
+  }
+
+  setPlaying(bool) {
+    this.playing = bool;
+  }
+
   anteUp(pot, amount = 1) {
     for(let i = 0; i < amount; i++) {
       if(this.chips.length !== 0) {
@@ -211,6 +242,63 @@ class Player {
         break;
       }
     }
+  }
+}
+
+// PlayerNPC class - computer controlled player
+class PlayerNPC extends Player {
+  constructor(name, numberOfChips = 10) {
+    super(name, numberOfChips);
+  }
+
+  exchangeCards() {
+    console.log(`NPC player ${this.name} is exchanging cards. Original hand is:`);
+    console.log(this.hand);
+
+    const cardsForExchange = this.hand.filter(card => card.suit !== game.getTrumpCard().suit && card.value < 6);
+
+    console.log('Cards for exchange are:')
+    console.log(cardsForExchange);
+
+    if(cardsForExchange.length > 0) {
+      for(let i = 0; i < cardsForExchange.length; i++) {
+        const cardID = cardsForExchange[i].cardID;
+        super.exchangeCard(cardID, game.deck);
+      }
+    }
+
+    console.log('New hand is:');
+    console.log(this.hand);
+  }
+
+  passOrPlay() {
+    // find any trump cards in the players hand
+    const trumpCards = this.hand.filter(card => card.suit === game.getTrumpCard().suit);
+    // find any high cards in the players hand
+    const highCards = this.hand.filter(card => card.value > 8);
+    // this will add some randomness into the decision to pass or play
+    const random = getRandomInt(100);
+
+    if(trumpCards.length > 1 || highCards.length > 3 || random <= 70) {
+      super.setPlaying(true);
+      console.log(`${this.name} is playing with ${trumpCards.length} trumpcards and ${highCards.length} highcards - random = ${random}`);
+
+      this.exchangeCards();
+    } else {
+      super.setPlaying(false);
+      console.log(`${this.name} passed`);
+    }
+  }
+}
+
+// PlayerHuman class - human controlled player
+class PlayerHuman extends Player {
+  constructor(name, numberOfChips = 10) {
+    super(name, numberOfChips);
+  }
+
+  passOrPlay() {
+    console.log('Player Human needs to pass or play!');
   }
 }
 
