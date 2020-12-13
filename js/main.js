@@ -147,8 +147,10 @@ class Game {
     // players must contribute initial ante
     this.players.forEach(player => player.anteUp(this.pot));
 
-    // 
+    // deal cards out to each player
     this.deck.dealHand(this.players, this);
+
+    // players decide if they want to pass or play on the hand, then exchange cards if needed
     this.players.forEach(player => player.passOrPlay());
   }
 
@@ -279,7 +281,13 @@ class PlayerNPC extends Player {
     // this will add some randomness into the decision to pass or play
     const random = getRandomInt(100);
 
-    if(trumpCards.length > 1 || highCards.length > 3 || random <= 70) {
+    if(super.getDealer() === true && game.getTrumpCard().value === 14) {
+      // dealer must play if the trump card is an ace since ace trump cards will always win a trick
+      super.setPlaying(true);
+      alert(`${this.name} must play since he holds the ace trump card.`);
+
+      this.exchangeCards();
+    } else if(trumpCards.length > 1 || highCards.length > 3 || random <= 70) {
       super.setPlaying(true);
       console.log(`${this.name} is playing with ${trumpCards.length} trumpcards and ${highCards.length} highcards - random = ${random}`);
 
@@ -297,8 +305,55 @@ class PlayerHuman extends Player {
     super(name, numberOfChips);
   }
 
+  // CLEAN THIS UP!!
+  // may need to update this later
+  exchangeCards() {
+    console.log(`Human player is exchanging cards. Original hand is:`);
+    this.hand.forEach(card => console.log(`CardID: ${card.cardID} CardValue: ${card.value} Suit: ${card.suit}`));
+
+    let cardIDs = prompt(`Enter card IDs you want to exchange below - separated by commas.`);
+    cardIDs = cardIDs.split(',');
+    console.log(cardIDs);
+
+    const cardsForExchange = this.hand.filter(function(card) {
+      return cardIDs.includes(card.cardID.toString());
+    });
+
+    console.log('Cards for exchange are:')
+    console.log(cardsForExchange);
+
+    if(cardsForExchange.length > 0) {
+      for(let i = 0; i < cardsForExchange.length; i++) {
+        const cardID = cardsForExchange[i].cardID;
+        super.exchangeCard(cardID, game.deck);
+      }
+    }
+
+    console.log('New hand is:');
+    console.log(this.hand);
+  }
+
+    // this will need to be updated later, just getting things working for now
   passOrPlay() {
-    console.log('Player Human needs to pass or play!');
+    console.log('Human player needs to pass or play!');
+
+    if(super.getDealer() === true && game.getTrumpCard().value === 14) {
+      // dealer must play if the trump card is an ace since ace trump cards will always win a trick
+      super.setPlaying(true);
+      alert(`${this.name} must play since he holds the ace trump card.`);
+
+      this.exchangeCards();
+    } else {
+      let passOrPlay = prompt("Would you like to play this hand? (y/n)");
+
+      if(passOrPlay.toLowerCase() === 'y') {
+        super.setPlaying(true);
+        this.exchangeCards();
+      } else {
+        super.setPlaying(false);
+        console.log('Human player is passing.');
+      }
+    }
   }
 }
 
