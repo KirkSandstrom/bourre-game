@@ -116,6 +116,8 @@ class Game {
     this.trumpCard = null;
     this.leadCard = null;
 
+    this.currentTrickNumber = 1;
+
     // create npc players here
     for(let i = 0; i < this.opponents; i++) {
       this.players.push(new PlayerNPC(`npc${i + 1}`, startingChips));
@@ -152,6 +154,19 @@ class Game {
 
     // players decide if they want to pass or play on the hand, then exchange cards if needed
     this.players.forEach(player => player.passOrPlay());
+
+    // loop 5 times to play through 5 'tricks' each hand
+    for(let tricksPlayed = 0; tricksPlayed < 5; tricksPlayed++) {
+      let currentTrick = new Trick(game.getCurrentTrickNumber);
+
+      // check each player to see if they're playing, players take their turn if they are
+      this.players.forEach(function(player) {
+        if(player.playing == true) {
+          player.takeTurn(currentTrick);
+        }
+      });
+      game.incrementCurrentTrickNumber();
+    }
   }
 
   setTrumpCard(card) {
@@ -169,7 +184,15 @@ class Game {
   getLeadCard() {
     return this.leadCard;
   }
-}
+
+  getCurrentTrickNumber() {
+    return this.currentTrickNumber;
+  }
+
+  incrementCurrentTrickNumber() {
+    this.currentTrickNumber++;
+  }
+} 
 
 // Pot class
 class Pot {
@@ -211,6 +234,20 @@ class Player {
       deck.dealCard(this);
     } else {
       console.log('Card to be exchanged not found in hand!');
+    }
+  }
+
+  playCardToTrick(cardID, trick) {
+    const cardIndex = this.hand.findIndex(card => card.cardID === cardID);
+
+    if(cardIndex !== -1) {
+      let card = this.hand.splice(cardIndex, 1);
+      card = card[0];
+      console.log(card);
+      trick.cards.push(card);
+      trick.positionCards();
+    } else {
+      console.log('Card to be played not found in hand!');
     }
   }
 
@@ -297,6 +334,45 @@ class PlayerNPC extends Player {
       console.log(`${this.name} passed`);
     }
   }
+
+  // playCardToTrick(cardID, trick) {
+  //   const cardIndex = this.hand.findIndex(card => card.cardID === cardID);
+
+  //   if(cardIndex !== -1) {
+  //     let card = this.hand.splice(cardIndex, 1);
+  //     card = card[0];
+  //     console.log(card);
+  //     trick.cards.push(card);
+  //     trick.positionCards();
+  //   } else {
+  //     console.log('Card to be played not found in hand!');
+  //   }
+  // }
+
+  takeTurn(trick) {
+    // Maybe sort cards in a different location immeditaly after hand is dealt?
+    this.hand.sort((a, b) => parseInt(b.value) - parseInt(a.value));
+    let trumpCards = this.hand.filter(card => card.suit === game.getTrumpCard().suit);
+
+    console.log(this.hand[0]);
+
+    console.log(trumpCards);
+
+    if(game.getLeadCard() === null) {
+      if(trumpCards.length !== 0) {
+        alert(`condition 1: Player ${this.name} is playing ${trumpCards[0].value} of ${trumpCards[0].suit}`);
+        this.playCardToTrick(trumpCards[0].cardID, trick);
+        game.setLeadCard(trumpCards[0]);
+      } else {
+        alert(`condition 2: Player ${this.name} is playing ${this.hand[0].value} of ${this.hand[0].suit}`);
+        this.playCardToTrick(this.hand[0].cardID, trick);
+        game.setLeadCard(this.hand[0]);
+      }
+    } else {
+      console.log('Lead card has already been set! I Need to write this part next!')
+      // let leadCards = this.hand.filter(card => card.suit === game.getLeadCard().suit);
+    }
+  }
 }
 
 // PlayerHuman class - human controlled player
@@ -355,6 +431,22 @@ class PlayerHuman extends Player {
       }
     }
   }
+
+  takeTurn(trick) {
+    console.log('Human player will take their turn here! I still need to write this!');
+  }
+}
+
+// Trick class
+class Trick {
+  constructor(trickNumber) {
+    this.trickNumber = trickNumber;
+    this.cards = [];
+  }
+
+  positionCards() {
+    console.log('I still need to finish the positionCards method!');
+  }
 }
 
 // -------------------- Global Functions --------------------
@@ -370,4 +462,6 @@ function getRandomInt(max) {
 
 // -------------------- Game Logic --------------------
 let game = new Game(4);
+
+// game loop will be created here
 game.playHand();
