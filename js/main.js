@@ -158,6 +158,7 @@ class Game {
     // loop 5 times to play through 5 'tricks' each hand
     for(let tricksPlayed = 0; tricksPlayed < 5; tricksPlayed++) {
       let currentTrick = new Trick(game.getCurrentTrickNumber);
+      console.log(`----------TRICK #${game.getCurrentTrickNumber()}----------`);
 
       // check each player to see if they're playing, players take their turn if they are
       this.players.forEach(function(player) {
@@ -165,12 +166,39 @@ class Game {
           player.takeTurn(currentTrick);
         }
       });
+      currentTrick.determineWinner();
       game.incrementCurrentTrickNumber();
+      game.unsetLeadCard();
     }
+
+    let handWinner = this.determineHandWinner(this.players);
+    let playersGoneBourre = this.determinePlayersGoneBourre(this.players);
+
+    console.log(`${handWinner.name} has won the hand with ${handWinner.tricksWon} tricks won!`);
+
+    playersGoneBourre.forEach(player => console.log(`${player.name} has gone bourre :(`));
+  }
+
+  determineHandWinner(players) {
+    let mostTricksWon = Math.max.apply(Math,players.map(function(player){return player.tricksWon;}));
+
+    let handWinner = players.find(function(players){ return players.tricksWon == mostTricksWon; })
+
+    return handWinner;
+  }
+
+  determinePlayersGoneBourre(players) {
+    let playersGoneBourre = players.filter(player => player.tricksWon === 0);
+
+    return playersGoneBourre;
   }
 
   setTrumpCard(card) {
     this.trumpCard = card;
+  }
+
+  unsetTrumpCard() {
+    this.trumpCard = null;
   }
 
   getTrumpCard() {
@@ -179,6 +207,10 @@ class Game {
 
   setLeadCard(card) {
     this.leadCard = card;
+  }
+
+  unsetLeadCard() {
+    this.leadCard = null;
   }
 
   getLeadCard() {
@@ -217,6 +249,7 @@ class Player {
     this.dealer = false;
     this.chips = [];
     this.playing = true;
+    this.tricksWon = 0;
 
     for(let i = 0; i < numberOfChips; i++) {
       this.chips.push(new Chip());
@@ -237,6 +270,14 @@ class Player {
     }
   }
 
+  getTricksWon() {
+    return this.tricksWon;
+  }
+
+  incrementTricksWon() {
+    this.tricksWon += 1;
+  }
+
   playCardToTrick(cardID, trick) {
     const cardIndex = this.hand.findIndex(card => card.cardID === cardID);
 
@@ -244,7 +285,9 @@ class Player {
       let card = this.hand.splice(cardIndex, 1);
       card = card[0];
       console.log(card);
-      trick.cards.push(card);
+
+      console.log(`playing card ${card.cardID} to trick`);
+      trick.addCard(card, this);
       trick.positionCards();
     } else {
       console.log('Card to be played not found in hand!');
@@ -268,6 +311,10 @@ class Player {
 
   setPlaying(bool) {
     this.playing = bool;
+  }
+
+  getName() {
+    return this.name;
   }
 
   anteUp(pot, amount = 1) {
@@ -335,20 +382,6 @@ class PlayerNPC extends Player {
     }
   }
 
-  // playCardToTrick(cardID, trick) {
-  //   const cardIndex = this.hand.findIndex(card => card.cardID === cardID);
-
-  //   if(cardIndex !== -1) {
-  //     let card = this.hand.splice(cardIndex, 1);
-  //     card = card[0];
-  //     console.log(card);
-  //     trick.cards.push(card);
-  //     trick.positionCards();
-  //   } else {
-  //     console.log('Card to be played not found in hand!');
-  //   }
-  // }
-
   takeTurn(trick) {
     // Maybe sort cards in a different location immeditaly after hand is dealt?
     this.hand.sort((a, b) => parseInt(b.value) - parseInt(a.value));
@@ -358,19 +391,31 @@ class PlayerNPC extends Player {
 
     console.log(trumpCards);
 
-    if(game.getLeadCard() === null) {
-      if(trumpCards.length !== 0) {
+    if(game.getLeadCard() == null) {
+      if(trumpCards.length > 0) {
         alert(`condition 1: Player ${this.name} is playing ${trumpCards[0].value} of ${trumpCards[0].suit}`);
-        this.playCardToTrick(trumpCards[0].cardID, trick);
+        super.playCardToTrick(trumpCards[0].cardID, trick);
         game.setLeadCard(trumpCards[0]);
       } else {
         alert(`condition 2: Player ${this.name} is playing ${this.hand[0].value} of ${this.hand[0].suit}`);
-        this.playCardToTrick(this.hand[0].cardID, trick);
+        super.playCardToTrick(this.hand[0].cardID, trick);
         game.setLeadCard(this.hand[0]);
       }
     } else {
-      console.log('Lead card has already been set! I Need to write this part next!')
-      // let leadCards = this.hand.filter(card => card.suit === game.getLeadCard().suit);
+      let leadCards = this.hand.filter(card => card.suit === game.getLeadCard().suit);
+      console.log(leadCards);
+
+      if(leadCards.length > 0) {
+        if(leadCards[0].value > game.getLeadCard.value) {
+          super.playCardToTrick(leadCards[0].cardID, trick);
+        } else {
+          super.playCardToTrick(leadCards[leadCards.length -1].cardID, trick);
+        }
+      } else if(trumpCards.length > 0) {
+        super.playCardToTrick(trumpCards[0].cardID, trick);
+      } else {
+        super.playCardToTrick(this.hand[0].cardID, trick);
+      }
     }
   }
 }
@@ -432,7 +477,7 @@ class PlayerHuman extends Player {
     }
   }
 
-  takeTurn(trick) {
+  takeTurn() {
     console.log('Human player will take their turn here! I still need to write this!');
   }
 }
@@ -441,11 +486,65 @@ class PlayerHuman extends Player {
 class Trick {
   constructor(trickNumber) {
     this.trickNumber = trickNumber;
-    this.cards = [];
+    this.cardsPlayed = new Map();
+  }
+
+  addCard(card, player) {
+    this.cardsPlayed.set(card, player);
+  }
+
+  determineWinner() {
+    // get trumpCard and leadCard
+    let trumpCard = game.getTrumpCard();
+    let leadCard = game.getLeadCard();
+
+    // initialize arrays for trumpSuitCards and leadSuitCards
+    let trumpSuitCards = [];
+    let leadSuitCards = [];
+
+    // create an array of cards from the cardsPlayed map
+    let cards = Array.from(this.cardsPlayed.keys());
+    
+    // sort cards high to low
+    cards.sort((a, b) => parseInt(b.value) - parseInt(a.value));
+
+    console.log('Determining trick winner..');
+    console.log(cards);
+
+    if(trumpCard != null) {
+      trumpSuitCards = cards.filter(card => card.suit === trumpCard.suit);
+    }
+
+    console.log(trumpSuitCards);
+
+    if(leadCard != null) {
+      leadSuitCards = cards.filter(card => card.suit === leadCard.suit);
+    }
+
+    console.log(leadSuitCards);
+
+    if(trumpSuitCards.length !== 0) {
+      this.setWinner(trumpSuitCards[0]);
+    } else if(leadSuitCards.length !== 0) {
+      this.setWinner(leadSuitCards[0]);
+    } else if(cards.length !== 0){
+      this.setWinner(cards[0]);
+    } else {
+      console.error('ERROR: Can not determine winner - no cards in trick');
+    }
   }
 
   positionCards() {
     console.log('I still need to finish the positionCards method!');
+  }
+
+  setWinner(card) {
+    let trickWinner = this.cardsPlayed.get(card);
+    trickWinner.incrementTricksWon();
+
+    console.log(`TRICK WINNER: ${trickWinner.name}`);
+    console.log(`WINNING CARD: ${card.cardID}`);
+    console.log(`${trickWinner.name} has won ${trickWinner.getTricksWon()} trick(s)!`);
   }
 }
 
